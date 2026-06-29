@@ -60,7 +60,13 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
 
       <main class="content">
         <div id="status" class="status idle">
-          Attach a BOL PDF to see the summary.
+          Select the BOL PDF to verify before sending.
+        </div>
+
+        <div class="file-area">
+          <label for="file-input" class="btn btn-secondary">Select BOL PDF</label>
+          <input id="file-input" type="file" accept=".pdf" style="display:none" />
+          <span id="file-name" class="file-name">No file selected</span>
         </div>
 
         <div id="summary" class="summary hidden">
@@ -80,10 +86,10 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
       </main>
 
       <footer class="footer">
-        <button id="btn-read" class="btn">Read BOL</button>
+        <button id="btn-read" class="btn" disabled>Read BOL</button>
       </footer>
     </div>
-  `,document.getElementById(`btn-read`).addEventListener(`click`,aa)}function aa(){da(`loading`,`Reading attachments...`);let e=Office.context.mailbox.item;if(!e){da(`error`,`No email is open.`);return}let t=e.attachments;if(!t||t.length===0){da(`idle`,`No attachments found in this email.`);return}let n=t.find(e=>e.attachmentType===Office.MailboxEnums.AttachmentType.File&&e.name.toLowerCase().endsWith(`.pdf`));if(!n){da(`idle`,`No PDF attachment found.`);return}da(`loading`,`Found: ${n.name}. Reading...`),e.getAttachmentContentAsync(n.id,e=>{if(e.status===Office.AsyncResultStatus.Failed){da(`error`,`Could not read attachment: ${e.error.message}`);return}oa(e.value.content)})}async function oa(e){try{let t=atob(e),n=new Uint8Array(t.length);for(let e=0;e<t.length;e++)n[e]=t.charCodeAt(e);let r=(await(await(await jr({data:n}).promise).getPage(1)).getTextContent()).items.map(e=>({str:e.str.trim(),x:Math.round(e.transform[4]),y:Math.round(e.transform[5])})).filter(e=>e.str.length>0);ua({pickup:sa(r,`PICKUP FROM:`),deliver:sa(r,`DELIVER TO:`),pallets:ca(r)})}catch(e){da(`error`,`Error parsing PDF: ${e.message}`)}}function sa(e,t){let n=e.find(e=>e.str.toUpperCase().includes(t.toUpperCase()));if(!n)return`Not found`;let r=n.x,i=n.y,a=e.filter(e=>Math.abs(e.x-r)<=30&&e.y<i).sort((e,t)=>t.y-e.y).map(e=>e.str).join(` `),o=a.match(/^(.*?\d{5})/);return o?o[1]:a}function ca(e){let t=e.find(e=>e.str===`LEN`),n=e.find(e=>e.str===`WID`),r=e.find(e=>e.str===`HGT`),i=e.find(e=>e.str===`ACT WT`||e.str===`ACT`);if(!t||!n||!r)return[];let a=t.y,o=e.filter(e=>e.str.toUpperCase()===`PLT`&&e.y<a);return o.length===0?[]:o.map(a=>{let o=a.y,s=e.filter(e=>Math.abs(e.y-o)<=4);return{len:la(s,t.x),wid:la(s,n.x),hgt:la(s,r.x),weight:i?la(s,i.x):``}})}function la(e,t){return e.length===0?``:[...e].sort((e,n)=>Math.abs(e.x-t)-Math.abs(n.x-t))[0].str}function ua(e){da(`ok`,`BOL parsed successfully.`),document.getElementById(`pickup`).textContent=e.pickup,document.getElementById(`deliver`).textContent=e.deliver;let t=document.getElementById(`pallets`);e.pallets.length===0?t.innerHTML=`<span class="value">Not found</span>`:t.innerHTML=e.pallets.map((e,t)=>`
+  `;let t=document.getElementById(`file-input`),n=document.getElementById(`file-name`),r=document.getElementById(`btn-read`);t.addEventListener(`change`,()=>{t.files&&t.files.length>0?(n.textContent=t.files[0].name,r.disabled=!1):(n.textContent=`No file selected`,r.disabled=!0)}),r.addEventListener(`click`,()=>{t.files&&t.files.length>0&&aa(t.files[0])})}function aa(e){da(`loading`,`Reading ${e.name}...`);let t=new FileReader;t.onload=e=>{let t=e.target?.result;oa(t)},t.onerror=()=>{da(`error`,`Could not read the file.`)},t.readAsArrayBuffer(e)}async function oa(e){try{let t=(await(await(await jr({data:new Uint8Array(e)}).promise).getPage(1)).getTextContent()).items.map(e=>({str:e.str.trim(),x:Math.round(e.transform[4]),y:Math.round(e.transform[5])})).filter(e=>e.str.length>0);ua({pickup:sa(t,`PICKUP FROM:`),deliver:sa(t,`DELIVER TO:`),pallets:ca(t)})}catch(e){da(`error`,`Error parsing PDF: ${e.message}`)}}function sa(e,t){let n=e.find(e=>e.str.toUpperCase().includes(t.toUpperCase()));if(!n)return`Not found`;let r=n.x,i=n.y,a=e.filter(e=>Math.abs(e.x-r)<=30&&e.y<i).sort((e,t)=>t.y-e.y).map(e=>e.str).join(` `),o=a.match(/^(.*?\d{5})/);return o?o[1]:a}function ca(e){let t=e.find(e=>e.str===`LEN`),n=e.find(e=>e.str===`WID`),r=e.find(e=>e.str===`HGT`),i=e.find(e=>e.str===`ACT WT`||e.str===`ACT`);if(!t||!n||!r)return[];let a=t.y,o=e.filter(e=>e.str.toUpperCase()===`PLT`&&e.y<a);return o.length===0?[]:o.map(a=>{let o=a.y,s=e.filter(e=>Math.abs(e.y-o)<=4);return{len:la(s,t.x),wid:la(s,n.x),hgt:la(s,r.x),weight:i?la(s,i.x):``}})}function la(e,t){return e.length===0?``:[...e].sort((e,n)=>Math.abs(e.x-t)-Math.abs(n.x-t))[0].str}function ua(e){da(`ok`,`BOL parsed successfully.`),document.getElementById(`pickup`).textContent=e.pickup,document.getElementById(`deliver`).textContent=e.deliver;let t=document.getElementById(`pallets`);e.pallets.length===0?t.innerHTML=`<span class="value">Not found</span>`:t.innerHTML=e.pallets.map((e,t)=>`
         <div class="pallet-row">
           <span class="pallet-num">PLT ${t+1}</span>
           <span class="pallet-dims">${e.len} x ${e.wid} x ${e.hgt} in</span>
