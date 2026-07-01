@@ -55,12 +55,12 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
     <div class="container">
       <header class="header">
         <div class="logo">GCA</div>
-        <h1 class="title">BOL Summary</h1>
+        <h1 class="title">BOL Verify</h1>
       </header>
 
       <main class="content">
         <div id="status" class="status idle">
-          Select the BOL PDF to verify before sending.
+          Select the BOL PDF then click Verify.
         </div>
 
         <div class="file-area">
@@ -69,29 +69,35 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
           <span id="file-name" class="file-name">No file selected</span>
         </div>
 
-        <div id="summary" class="summary hidden">
-          <div class="field">
-            <span class="label">Pickup From</span>
-            <span id="pickup" class="value">—</span>
-          </div>
-          <div class="field">
-            <span class="label">Deliver To</span>
-            <span id="deliver" class="value">—</span>
-          </div>
-          <div class="field">
-            <span class="label">Pallets</span>
-            <div id="pallets" class="pallets"></div>
+        <div id="results" class="results hidden"></div>
+
+        <div id="confirm-area" class="confirm-area hidden">
+          <p class="confirm-text">Are you sure you want to send this email?</p>
+          <div class="confirm-buttons">
+            <button id="btn-cancel" class="btn btn-danger">✕ Cancel</button>
+            <button id="btn-confirm" class="btn btn-success">✓ Send</button>
           </div>
         </div>
       </main>
 
       <footer class="footer">
-        <button id="btn-read" class="btn" disabled>Read BOL</button>
+        <button id="btn-verify" class="btn" disabled>Verify & Send</button>
       </footer>
     </div>
-  `;let t=document.getElementById(`file-input`),n=document.getElementById(`file-name`),r=document.getElementById(`btn-read`);t.addEventListener(`change`,()=>{t.files&&t.files.length>0?(n.textContent=t.files[0].name,r.disabled=!1):(n.textContent=`No file selected`,r.disabled=!0)}),r.addEventListener(`click`,()=>{t.files&&t.files.length>0&&aa(t.files[0])})}function aa(e){da(`loading`,`Reading ${e.name}...`);let t=new FileReader;t.onload=e=>{let t=e.target?.result;oa(t)},t.onerror=()=>{da(`error`,`Could not read the file.`)},t.readAsArrayBuffer(e)}async function oa(e){try{let t=(await(await(await jr({data:new Uint8Array(e)}).promise).getPage(1)).getTextContent()).items.map(e=>({str:e.str.trim(),x:Math.round(e.transform[4]),y:Math.round(e.transform[5])})).filter(e=>e.str.length>0);ua({pickup:sa(t,`PICKUP FROM:`),deliver:sa(t,`DELIVER TO:`),pallets:ca(t)})}catch(e){da(`error`,`Error parsing PDF: ${e.message}`)}}function sa(e,t){let n=e.find(e=>e.str.toUpperCase().includes(t.toUpperCase()));if(!n)return`Not found`;let r=n.x,i=n.y,a=e.filter(e=>Math.abs(e.x-r)<=30&&e.y<i).sort((e,t)=>t.y-e.y).map(e=>e.str).join(` `),o=a.match(/^(.*?\d{5})/);return o?o[1]:a}function ca(e){let t=e.find(e=>e.str===`LEN`),n=e.find(e=>e.str===`WID`),r=e.find(e=>e.str===`HGT`),i=e.find(e=>e.str===`ACT WT`||e.str===`ACT`);if(!t||!n||!r)return[];let a=t.y,o=e.filter(e=>e.str.toUpperCase()===`PLT`&&e.y<a);return o.length===0?[]:o.map(a=>{let o=a.y,s=e.filter(e=>Math.abs(e.y-o)<=4);return{len:la(s,t.x),wid:la(s,n.x),hgt:la(s,r.x),weight:i?la(s,i.x):``}})}function la(e,t){return e.length===0?``:[...e].sort((e,n)=>Math.abs(e.x-t)-Math.abs(n.x-t))[0].str}function ua(e){da(`ok`,`BOL parsed successfully.`),document.getElementById(`pickup`).textContent=e.pickup,document.getElementById(`deliver`).textContent=e.deliver;let t=document.getElementById(`pallets`);e.pallets.length===0?t.innerHTML=`<span class="value">Not found</span>`:t.innerHTML=e.pallets.map((e,t)=>`
-        <div class="pallet-row">
-          <span class="pallet-num">PLT ${t+1}</span>
-          <span class="pallet-dims">${e.len} x ${e.wid} x ${e.hgt} in</span>
-          <span class="pallet-weight">${e.weight} lb</span>
-        </div>`).join(``),document.getElementById(`summary`).classList.remove(`hidden`)}function da(e,t){let n=document.getElementById(`status`);n.className=`status ${e}`,n.textContent=t}
+  `;let t=document.getElementById(`file-input`),n=document.getElementById(`file-name`),r=document.getElementById(`btn-verify`);t.addEventListener(`change`,()=>{t.files&&t.files.length>0?(n.textContent=t.files[0].name,r.disabled=!1):(n.textContent=`No file selected`,r.disabled=!0)}),r.addEventListener(`click`,()=>{t.files&&t.files.length>0&&aa(t.files[0])})}async function aa(e){ma(`loading`,`Reading BOL and email...`);try{la(await oa(e),ca(await sa()))}catch(e){ma(`error`,`Error: ${e.message}`)}}async function oa(e){return new Promise((t,n)=>{let r=new FileReader;r.onload=async e=>{try{let n=e.target?.result,r=(await(await(await jr({data:new Uint8Array(n)}).promise).getPage(1)).getTextContent()).items.map(e=>({str:e.str.trim(),x:Math.round(e.transform[4]),y:Math.round(e.transform[5])})).filter(e=>e.str.length>0);t({pickup:da(r,`PICKUP FROM:`),deliver:da(r,`DELIVER TO:`),pallets:fa(r)})}catch(e){n(e)}},r.onerror=()=>n(Error(`Could not read file`)),r.readAsArrayBuffer(e)})}function sa(){return new Promise((e,t)=>{let n=Office.context.mailbox.item;if(!n){t(Error(`No email is open.`));return}n.body.getAsync(Office.CoercionType.Text,n=>{if(n.status===Office.AsyncResultStatus.Failed){t(Error(n.error.message));return}e(n.value)})})}function ca(e){let t=/(\d+[\.,]?\d*)\s*[xX×]\s*(\d+[\.,]?\d*)\s*[xX×]\s*(\d+[\.,]?\d*)/g,n=[],r;for(;(r=t.exec(e))!==null;)n.push(`${r[1]} x ${r[2]} x ${r[3]}`);let i=/(\d+[\.,]?\d*)\s*(lb|lbs|pounds|kg|kilos|kgs)/gi,a=[],o;for(;(o=i.exec(e))!==null;)a.push(`${o[1]} ${o[2].toLowerCase()}`);let s=``,c=e.match(/pickup\s*(address|from|location)?[:\-–]?\s*([^\n\r]{5,})/i);return c&&(s=c[2].trim()),{dimensions:n,weights:a,pickupAddress:s}}function la(e,t){ma(`ok`,`Verification complete.`);let n=document.getElementById(`results`);n.classList.remove(`hidden`);let r=e.pallets.map(e=>`${e.len} x ${e.wid} x ${e.hgt}`),i=e.pallets.map(e=>e.weight),a=``;r.length===0?a=ua(`⚠️`,`Dimensions`,`Not found in BOL`,``,`warn`):r.forEach((e,n)=>{let r=t.dimensions.some(t=>t.replace(/\s/g,``)===e.replace(/\s/g,``));a+=ua(r?`✅`:`❌`,`PLT ${n+1} Dims`,e,r?`Found in email`:`Not found in email`,r?`ok`:`error`)});let o=``;i.length===0?o=ua(`⚠️`,`Weight`,`Not found in BOL`,``,`warn`):i.forEach((e,n)=>{let r=t.weights.some(t=>t.startsWith(e));o+=ua(r?`✅`:`❌`,`PLT ${n+1} Weight`,`${e} lb`,r?`Found in email`:`Not found in email`,r?`ok`:`error`)});let s=t.pickupAddress.length>0&&e.pickup!==`Not found`&&(t.pickupAddress.toLowerCase().includes(e.pickup.split(` `)[0].toLowerCase())||e.pickup.toLowerCase().includes(t.pickupAddress.split(` `)[0].toLowerCase()));n.innerHTML=`
+    <div class="results-list">
+      ${ua(s?`✅`:`⚠️`,`Pickup`,e.pickup,t.pickupAddress||`Not found in email`,s?`ok`:`warn`)}
+      ${ua(`📦`,`Deliver To`,e.deliver,``,`info`)}
+      ${a}
+      ${o}
+    </div>
+  `,document.getElementById(`confirm-area`).classList.remove(`hidden`),document.getElementById(`btn-cancel`).addEventListener(`click`,()=>{document.getElementById(`confirm-area`).classList.add(`hidden`),ma(`idle`,`Send cancelled. Review the issues above.`)}),document.getElementById(`btn-confirm`).addEventListener(`click`,()=>{Office.context.mailbox.item?.close()})}function ua(e,t,n,r,i){return`
+    <div class="result-row result-${i}">
+      <span class="result-icon">${e}</span>
+      <div class="result-content">
+        <span class="result-label">${t}</span>
+        <span class="result-value">${n}</span>
+        ${r?`<span class="result-note">${r}</span>`:``}
+      </div>
+    </div>
+  `}function da(e,t){let n=e.find(e=>e.str.toUpperCase().includes(t.toUpperCase()));if(!n)return`Not found`;let r=n.x,i=n.y,a=e.filter(e=>Math.abs(e.x-r)<=30&&e.y<i).sort((e,t)=>t.y-e.y).map(e=>e.str).join(` `),o=a.match(/^(.*?\d{5})/);return o?o[1]:a}function fa(e){let t=e.find(e=>e.str===`LEN`),n=e.find(e=>e.str===`WID`),r=e.find(e=>e.str===`HGT`),i=e.find(e=>e.str===`ACT WT`||e.str===`ACT`);if(!t||!n||!r)return[];let a=t.y,o=e.filter(e=>e.str.toUpperCase()===`PLT`&&e.y<a);return o.length===0?[]:o.map(a=>{let o=a.y,s=e.filter(e=>Math.abs(e.y-o)<=4);return{len:pa(s,t.x),wid:pa(s,n.x),hgt:pa(s,r.x),weight:i?pa(s,i.x):``}})}function pa(e,t){return e.length===0?``:[...e].sort((e,n)=>Math.abs(e.x-t)-Math.abs(n.x-t))[0].str}function ma(e,t){let n=document.getElementById(`status`);n.className=`status ${e}`,n.textContent=t}
